@@ -360,6 +360,9 @@ function mergeWords(payload, custom) {
         custom[gameKey][cleanCat].push(gameKey === "spanish" ? { word, sub: card.sub, emoji } : { word, emoji });
         added++;
       }
+      // an all-duplicate/invalid response must not leave an empty tab behind
+      if (GAMES[gameKey].categories[cleanCat].length === 0) delete GAMES[gameKey].categories[cleanCat];
+      if (custom[gameKey][cleanCat].length === 0) delete custom[gameKey][cleanCat];
     }
   }
   return { added, skipped };
