@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff7ef" />
+  <title>¡Hola! Spanish Flash Cards</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- ============ HOME ============ -->
+  <main id="home" class="screen">
+    <h1 class="app-title">¡Hola! <span>Spanish</span><br />Flash Cards</h1>
+    <p class="pick">Pick a game! 🎈</p>
+
+    <button class="game-card game-spanish" data-game="spanish">
+      <span class="game-emoji">🇪🇸</span>
+      <span class="game-text">
+        <strong>¡Hola! Spanish</strong>
+        <small>Learn Spanish words</small>
+      </span>
+    </button>
+
+    <button class="game-card game-sight" data-game="sight">
+      <span class="game-emoji">📖</span>
+      <span class="game-text">
+        <strong>Sight Words</strong>
+        <small>Learn to read English</small>
+      </span>
+    </button>
+  </main>
+
+  <!-- ============ GAME ============ -->
+  <main id="game" class="screen hidden">
+    <header class="game-header">
+      <button id="back-btn" class="icon-btn" aria-label="Back to games">‹</button>
+      <h2 id="game-title">¡Hola! Spanish</h2>
+      <div class="stars" aria-label="stars earned"><span class="star-ico">⭐</span><span id="star-count">0</span></div>
+    </header>
+
+    <nav id="tabs" class="tabs" aria-label="categories"></nav>
+
+    <section class="card-zone">
+      <button id="flashcard" class="flashcard">
+        <span id="card-emoji" class="card-emoji">🐟</span>
+        <span id="card-word" class="card-word">el pez</span>
+        <span id="card-sub" class="card-sub">the fish</span>
+      </button>
+      <p id="hint" class="hint">tap the green button to hear it!</p>
+      <p id="progress" class="progress">1 / 8</p>
+    </section>
+
+    <div class="controls">
+      <button id="speak-btn" class="speak-btn" aria-label="Hear the word">🔊</button>
+      <button id="next-btn" class="next-btn">Next →</button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast hidden">🎉 ¡Muy bien!</div>
+  <audio id="player" preload="auto"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>

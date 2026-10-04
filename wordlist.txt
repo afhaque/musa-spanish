@@ -1,0 +1,80 @@
+es|perro|el perro
+es|gato|el gato
+es|pez|el pez
+es|pajaro|el pájaro
+es|caballo|el caballo
+es|vaca|la vaca
+es|conejo|el conejo
+es|pato|el pato
+es|manzana|la manzana
+es|pan|el pan
+es|leche|la leche
+es|queso|el queso
+es|huevo|el huevo
+es|banana|la banana
+es|jugo|el jugo
+es|fresa|la fresa
+es|rojo|rojo
+es|azul|azul
+es|verde|verde
+es|amarillo|amarillo
+es|naranja|naranja
+es|morado|morado
+es|rosa|rosa
+es|negro|negro
+es|circulo|el círculo
+es|cuadrado|el cuadrado
+es|triangulo|el triángulo
+es|estrella|la estrella
+es|corazon|el corazón
+es|rombo|el rombo
+es|luna|la luna
+es|cruz|la cruz
+en|dog|dog
+en|cat|cat
+en|duck|duck
+en|fish|fish
+en|bird|bird
+en|pig|pig
+en|cow|cow
+en|horse|horse
+en|frog|frog
+en|bear|bear
+en|lion|lion
+en|bee|bee
+en|apple|apple
+en|milk|milk
+en|egg|egg
+en|bread|bread
+en|cheese|cheese
+en|juice|juice
+en|banana|banana
+en|cake|cake
+en|cookie|cookie
+en|pizza|pizza
+en|rice|rice
+en|corn|corn
+en|ball|ball
+en|book|book
+en|car|car
+en|cup|cup
+en|hat|hat
+en|shoe|shoe
+en|bed|bed
+en|toy|toy
+en|sun|sun
+en|moon|moon
+en|star|star
+en|tree|tree
+en|red|red
+en|blue|blue
+en|green|green
+en|yellow|yellow
+en|orange|orange
+en|purple|purple
+en|pink|pink
+en|black|black
+en|white|white
+en|brown|brown
+en|gray|gray
+en|rainbow|rainbow
