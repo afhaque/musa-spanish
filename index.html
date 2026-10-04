@@ -33,6 +33,8 @@
         <small>Learn to read English</small>
       </span>
     </button>
+
+    <button id="addwords-btn" class="addwords-btn">✨ Add more words</button>
   </main>
 
   <!-- ============ GAME ============ -->
@@ -46,12 +48,20 @@
     <nav id="tabs" class="tabs" aria-label="categories"></nav>
 
     <section class="card-zone">
-      <button id="flashcard" class="flashcard">
-        <span id="card-emoji" class="card-emoji">🐟</span>
-        <span id="card-word" class="card-word">el pez</span>
-        <span id="card-sub" class="card-sub">the fish</span>
+      <button id="flashcard" class="flashcard" aria-label="flashcard — tap to flip">
+        <div class="card-inner">
+          <div class="card-face card-front">
+            <span id="card-word" class="card-word">el pez</span>
+            <span class="flip-hint">👆 tap to see the picture</span>
+          </div>
+          <div class="card-face card-back">
+            <span id="card-emoji" class="card-emoji">🐟</span>
+            <span id="card-back-word" class="card-word card-word-small">el pez</span>
+            <span id="card-sub" class="card-sub">the fish</span>
+          </div>
+        </div>
       </button>
-      <p id="hint" class="hint">tap the green button to hear it!</p>
+      <p id="hint" class="hint">tap the card to flip it · 🔊 to hear it!</p>
       <p id="progress" class="progress">1 / 8</p>
     </section>
 
@@ -61,7 +71,56 @@
     </div>
   </main>
 
-  <div id="toast" class="toast hidden">🎉 ¡Muy bien!</div>
+  <!-- ============ CELEBRATION (own page) ============ -->
+  <div id="celebrate" class="overlay hidden" role="dialog" aria-label="celebration">
+    <div class="celebrate-card">
+      <div class="celebrate-emoji">🎉</div>
+      <h2 id="celebrate-title">¡Muy bien!</h2>
+      <p id="celebrate-sub">You finished Animals!</p>
+      <div class="celebrate-stars"><span class="star-ico">⭐</span> <span id="celebrate-count">8</span> stars</div>
+      <button id="celebrate-next" class="next-btn celebrate-btn">Keep going →</button>
+    </div>
+  </div>
+
+  <!-- ============ ADD WORDS (LLM chat sheet) ============ -->
+  <div id="sheet" class="sheet hidden" role="dialog" aria-label="add more words">
+    <div class="sheet-panel">
+      <header class="sheet-header">
+        <h3>✨ Add more words</h3>
+        <button id="sheet-close" class="icon-btn" aria-label="Close">✕</button>
+      </header>
+
+      <details id="llm-settings" class="llm-settings">
+        <summary>⚙️ LLM settings</summary>
+        <label>API base URL
+          <input id="llm-base" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+        </label>
+        <label>API key
+          <input id="llm-key" type="password" placeholder="sk-..." autocomplete="off" />
+        </label>
+        <label>Model
+          <input id="llm-model" type="text" placeholder="gpt-4o-mini" autocomplete="off" />
+        </label>
+        <button id="llm-save" class="small-btn">Save settings</button>
+        <p class="settings-note">Stored only in this browser (localStorage). Sent only to the API base URL above.</p>
+      </details>
+
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" placeholder='e.g. "add 6 ocean animals in Spanish"' autocomplete="off" />
+        <button type="submit" class="small-btn send-btn">Send</button>
+      </form>
+
+      <div class="sheet-actions">
+        <button id="export-words" class="small-btn">📋 Copy my words</button>
+        <button id="reset-words" class="small-btn danger">🗑 Reset custom words</button>
+      </div>
+      <p class="sheet-note">Custom words stay on this device and use the device voice.
+        Copy them to Spock to bake them into the app with ElevenLabs audio.</p>
+    </div>
+  </div>
+
   <audio id="player" preload="auto"></audio>
 
   <script src="app.js"></script>

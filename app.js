@@ -1,7 +1,9 @@
 /* ¡Hola! Spanish Flash Cards
  * Two toddler games: Spanish words + English sight words.
- * Audio is pre-generated with ElevenLabs at build time (no API key in client).
- * Falls back to the browser's speechSynthesis if an audio file is missing.
+ * - Built-in word audio is pre-generated with ElevenLabs at build time (no key in client).
+ * - Custom (LLM-added) words live in localStorage and use the device voice
+ *   (speechSynthesis), since no ElevenLabs audio exists for them.
+ * - Flip cards: front = word only, back = picture (+ translation).
  */
 
 const GAMES = {
@@ -9,7 +11,6 @@ const GAMES = {
     title: "¡Hola! Spanish",
     lang: "es",
     speakColor: "green",
-    hint: "tap the green button to hear it!",
     categories: {
       "Animals": [
         { word: "el perro",    sub: "the dog",    emoji: "🐶", slug: "perro" },
@@ -57,7 +58,6 @@ const GAMES = {
     title: "Sight Words",
     lang: "en",
     speakColor: "orange",
-    hint: "tap the orange button to hear it!",
     categories: {
       "Animals": [
         { word: "dog",   emoji: "🐶", slug: "dog" },
@@ -121,6 +121,9 @@ const GAMES = {
 
 const $ = (id) => document.getElementById(id);
 const player = $("player");
+const CUSTOM_KEY = "musa-custom-words";
+const LLM_KEY = "musa-llm-settings";
+const MAX_CUSTOM_WORDS = 200;
 
 let state = {
   game: null,        // 'spanish' | 'sight'
@@ -144,7 +147,6 @@ function openGame(key) {
   const game = GAMES[key];
   document.documentElement.lang = game.lang;
   $("game-title").textContent = game.title;
-  $("hint").textContent = game.hint;
   $("speak-btn").className = "speak-btn " + game.speakColor;
   renderStars();
   renderTabs(Object.keys(game.categories));
@@ -174,34 +176,39 @@ function selectCategory(name) {
   showCard();
 }
 
-/* ---------- card ---------- */
+/* ---------- flip card ---------- */
 function currentCards() {
   return GAMES[state.game].categories[state.category];
 }
 
 function showCard() {
   const card = currentCards()[state.index];
+  const fc = $("flashcard");
+  fc.classList.remove("flipped");          // always land word-side up
   $("card-emoji").textContent = card.emoji;
   $("card-word").textContent = card.word;
+  $("card-back-word").textContent = card.word;
   const sub = $("card-sub");
   if (card.sub) { sub.textContent = card.sub; sub.style.display = ""; }
   else { sub.style.display = "none"; }
   $("progress").textContent = `${state.index + 1} / ${currentCards().length}`;
-  const fc = $("flashcard");
-  fc.classList.remove("flip");
-  void fc.offsetWidth; // restart animation
-  fc.classList.add("flip");
+  fc.classList.remove("deal");
+  void fc.offsetWidth; // restart deal animation
+  fc.classList.add("deal");
 }
+
+$("flashcard").addEventListener("click", () => {
+  $("flashcard").classList.toggle("flipped");
+});
 
 $("next-btn").addEventListener("click", () => {
   addStar();
   const cards = currentCards();
   state.index = (state.index + 1) % cards.length;
-  if (state.index === 0) celebrate();
   showCard();
+  if (state.index === 0) celebrate();
 });
 
-$("flashcard").addEventListener("click", speak);
 $("speak-btn").addEventListener("click", speak);
 
 /* ---------- audio ---------- */
@@ -238,7 +245,7 @@ function synthFallback(text, lang) {
   speechSynthesis.speak(u);
 }
 
-/* ---------- stars & celebration ---------- */
+/* ---------- stars ---------- */
 function renderStars() {
   $("star-count").textContent = state.stars;
 }
@@ -253,9 +260,256 @@ function addStar() {
   el.classList.add("bump");
 }
 
+/* ---------- celebration (own page) ---------- */
 function celebrate() {
-  const toast = $("toast");
-  toast.textContent = state.game === "spanish" ? "🎉 ¡Muy bien!" : "🎉 Great job!";
-  toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 1600);
+  $("celebrate-title").textContent = state.game === "spanish" ? "¡Muy bien!" : "Great job!";
+  $("celebrate-sub").textContent = `You finished ${state.category}!`;
+  $("celebrate-count").textContent = state.stars;
+  $("celebrate").classList.remove("hidden");
+  if ("speechSynthesis" in window) {
+    const u = new SpeechSynthesisUtterance(
+      state.game === "spanish" ? "¡Muy bien!" : "Great job!"
+    );
+    u.lang = state.game === "spanish" ? "es-ES" : "en-US";
+    speechSynthesis.speak(u);
+  }
 }
+
+$("celebrate-next").addEventListener("click", () => {
+  $("celebrate").classList.add("hidden");
+});
+
+/* ============================================================
+ * Add-more-words: LLM chat that expands categories/word counts.
+ * The LLM key lives only in this browser's localStorage and is
+ * sent only to the configured API base URL (Authorization header).
+ * LLM-provided text is rendered exclusively via textContent.
+ * ============================================================ */
+
+function slugify(word) {
+  return word
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")   // strip accents
+    .replace(/^(el|la|los|las|un|una|the)\s+/, "") // strip leading article
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 32);
+}
+
+function loadCustom() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveCustom(custom) {
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+}
+
+function countCustom(custom) {
+  let n = 0;
+  for (const g of Object.values(custom))
+    for (const cards of Object.values(g)) n += cards.length;
+  return n;
+}
+
+/* Merge custom words into GAMES. Returns {added, skipped} counts.
+ * Accepts shape { spanish: {Cat: [{word, sub?, emoji}]}, sight: {...} } */
+function mergeWords(payload, custom) {
+  let added = 0, skipped = 0;
+  for (const gameKey of ["spanish", "sight"]) {
+    const cats = payload[gameKey];
+    if (!cats || typeof cats !== "object") continue;
+    for (const [catName, words] of Object.entries(cats)) {
+      if (!Array.isArray(words)) continue;
+      const cleanCat = String(catName).slice(0, 24).trim();
+      if (!cleanCat) continue;
+      if (!GAMES[gameKey].categories[cleanCat]) GAMES[gameKey].categories[cleanCat] = [];
+      if (!custom[gameKey]) custom[gameKey] = {};
+      if (!custom[gameKey][cleanCat]) custom[gameKey][cleanCat] = [];
+      for (const w of words) {
+        if (!w || typeof w.word !== "string" || typeof w.emoji !== "string") { skipped++; continue; }
+        const word = w.word.trim().slice(0, 40);
+        const emoji = w.emoji.trim().slice(0, 8);
+        const sub = typeof w.sub === "string" ? w.sub.trim().slice(0, 40) : undefined;
+        const slug = slugify(word);
+        if (!word || !emoji || !slug) { skipped++; continue; }
+        const exists = GAMES[gameKey].categories[cleanCat].some((c) => c.slug === slug);
+        if (exists) { skipped++; continue; }
+        const card = gameKey === "spanish"
+          ? { word, sub: sub || "", emoji, slug }
+          : { word, emoji, slug };
+        GAMES[gameKey].categories[cleanCat].push(card);
+        custom[gameKey][cleanCat].push(gameKey === "spanish" ? { word, sub: card.sub, emoji } : { word, emoji });
+        added++;
+      }
+    }
+  }
+  return { added, skipped };
+}
+
+/* Re-apply persisted custom words on load */
+(function applyStoredCustom() {
+  const stored = loadCustom();
+  if (!stored || typeof stored !== "object") return;
+  const fresh = {};
+  mergeWords(stored, fresh); // rebuilds GAMES; 'fresh' mirrors stored (dedup vs built-ins)
+  saveCustom(fresh);
+})();
+
+/* ---------- sheet UI ---------- */
+$("addwords-btn").addEventListener("click", () => {
+  openSheet();
+});
+$("sheet-close").addEventListener("click", closeSheet);
+$("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) closeSheet(); });
+
+function openSheet() {
+  const s = getLlmSettings();
+  $("llm-base").value = s.base;
+  $("llm-key").value = s.key;
+  $("llm-model").value = s.model;
+  if (!$("chat-log").children.length) {
+    botSay(s.key
+      ? 'Tell me what words to add! For example:\n• "add 6 ocean animals in Spanish"\n• "add 8 more sight words about home"\n• "make a new Spanish category for family members"'
+      : "First, open ⚙️ LLM settings above and paste an API key (OpenAI or any OpenAI-compatible service). It stays in this browser only.");
+  }
+  $("sheet").classList.remove("hidden");
+}
+
+function closeSheet() {
+  $("sheet").classList.add("hidden");
+  // if words were added while a game was open, refresh the tab bar
+  if (!$("game").classList.contains("hidden") && state.game) {
+    renderTabs(Object.keys(GAMES[state.game].categories));
+    document.querySelectorAll(".tab").forEach((t) =>
+      t.classList.toggle("active", t.textContent === state.category)
+    );
+  }
+}
+
+function chatMsg(text, cls) {
+  const div = document.createElement("div");
+  div.className = "chat-msg " + cls;
+  div.textContent = text;   // textContent only — LLM output is never injected as HTML
+  $("chat-log").appendChild(div);
+  $("chat-log").scrollTop = $("chat-log").scrollHeight;
+  return div;
+}
+const botSay = (t) => chatMsg(t, "bot");
+
+/* ---------- LLM settings ---------- */
+function getLlmSettings() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(LLM_KEY)) || {}; } catch { s = {}; }
+  return {
+    base: (s.base || "https://api.openai.com/v1").replace(/\/+$/, ""),
+    key: s.key || "",
+    model: s.model || "gpt-4o-mini",
+  };
+}
+
+$("llm-save").addEventListener("click", () => {
+  const s = {
+    base: $("llm-base").value.trim() || "https://api.openai.com/v1",
+    key: $("llm-key").value.trim(),
+    model: $("llm-model").value.trim() || "gpt-4o-mini",
+  };
+  localStorage.setItem(LLM_KEY, JSON.stringify(s));
+  botSay("Settings saved ✅");
+});
+
+/* ---------- LLM chat ---------- */
+const SYSTEM_PROMPT = `You expand the word lists of a toddler's flashcard app. The app has two games: "spanish" (Spanish vocabulary) and "sight" (English sight words for early readers).
+
+Reply with ONLY a JSON object, no markdown fences, no explanation:
+{"spanish":{"Category Name":[{"word":"el tiburón","sub":"the shark","emoji":"🦈"}]},"sight":{"Category Name":[{"word":"shark","emoji":"🦈"}]}}
+
+Rules:
+- Include only the games/categories the user asked for; omit the rest.
+- Spanish words: singular noun with correct article (el/la) and proper accents; "sub" is the English translation ("the shark"). Colors/shapes keep their usual form.
+- Sight words: simple English words a 3-5 year old can read; NO "sub" field.
+- One clear, common emoji per word.
+- 3 to 12 words per category per request.
+- Kid-appropriate vocabulary only.`;
+
+$("chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  const s = getLlmSettings();
+  if (!s.key) { botSay("No API key yet — open ⚙️ LLM settings above and paste one first."); return; }
+
+  input.value = "";
+  chatMsg(text, "user");
+  const thinking = botSay("thinking… 🤔");
+
+  try {
+    const res = await fetch(`${s.base}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${s.key}`,   // key goes only to the configured endpoint
+      },
+      body: JSON.stringify({
+        model: s.model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: text },
+        ],
+        temperature: 0.7,
+      }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    // tolerate the model wrapping JSON in prose or fences
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("The model didn't return JSON. Try rephrasing.");
+    const payload = JSON.parse(match[0]);
+
+    const custom = loadCustom();
+    if (countCustom(custom) >= MAX_CUSTOM_WORDS) {
+      thinking.remove();
+      botSay(`You've hit the ${MAX_CUSTOM_WORDS}-word custom limit. Copy your words to Spock to bake them in, then reset.`, );
+      return;
+    }
+    const { added, skipped } = mergeWords(payload, custom);
+    saveCustom(custom);
+    thinking.remove();
+
+    if (added === 0) {
+      botSay(skipped > 0
+        ? `Nothing new to add — ${skipped} word(s) were duplicates or invalid. Try a different theme!`
+        : "I couldn't find any words in that reply. Try again?");
+    } else {
+      const names = [];
+      for (const g of ["spanish", "sight"])
+        for (const [cat, words] of Object.entries(payload[g] || {}))
+          if (Array.isArray(words) && words.length) names.push(`${cat} (${GAMES[g].title})`);
+      botSay(`Added ${added} new word(s) ✅${names.length ? "\nCategories: " + names.join(", ") : ""}${skipped ? `\n(${skipped} duplicates skipped)` : ""}\nThey use the device voice — copy them to Spock for ElevenLabs audio.`);
+    }
+  } catch (err) {
+    thinking.remove();
+    chatMsg(`Couldn't add words: ${err.message}`, "bot error");
+  }
+});
+
+/* ---------- export / reset ---------- */
+$("export-words").addEventListener("click", async () => {
+  const custom = loadCustom();
+  const json = JSON.stringify(custom, null, 2);
+  if (countCustom(custom) === 0) { botSay("No custom words yet — ask me to add some first!"); return; }
+  try {
+    await navigator.clipboard.writeText(json);
+    botSay("Copied! 📋 Paste it to Spock (or in the repo) to bake these words in with ElevenLabs audio.");
+  } catch {
+    botSay("Clipboard blocked. Here is your JSON — long-press to copy:\n" + json.slice(0, 1500));
+  }
+});
+
+$("reset-words").addEventListener("click", () => {
+  localStorage.removeItem(CUSTOM_KEY);
+  botSay("Custom words cleared 🗑 Reloading…");
+  setTimeout(() => location.reload(), 900);
+});

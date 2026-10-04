@@ -25,9 +25,16 @@ node extract-words.js   # writes wordlist.txt from app.js
 
 ## Features
 
+- **Flip cards for practice**: front shows only the word; tap to flip and reveal
+  the picture (Spanish cards also show the English translation on the back)
+- Full-screen celebration page when a category is completed
+- **✨ Add more words**: built-in LLM chat (OpenAI-compatible endpoint; key stays
+  in the browser's localStorage) that expands categories and word counts. Custom
+  words persist on-device, are deduped against built-ins, rendered injection-safe
+  (textContent only), and spoken with the device voice. Export them to JSON to
+  bake into the repo with ElevenLabs audio.
 - Toddler-scale tap targets (≥48px), single-column layout, safe-area aware
 - Star counter with persistence (localStorage)
-- Category completion celebration
 - Fully static: no backend, no build step, no tracking
 
 ## Deploy
