@@ -52,7 +52,6 @@
         <div class="card-inner">
           <div class="card-face card-front">
             <span id="card-word" class="card-word">el pez</span>
-            <span class="flip-hint">👆 tap to see the picture</span>
           </div>
           <div class="card-face card-back">
             <span id="card-emoji" class="card-emoji">🐟</span>
@@ -61,7 +60,7 @@
           </div>
         </div>
       </button>
-      <p id="hint" class="hint">tap the card to flip it · 🔊 to hear it!</p>
+      <p id="hint" class="hint">tap the green button to hear it!</p>
       <p id="progress" class="progress">1 / 8</p>
     </section>
 
@@ -90,34 +89,31 @@
         <button id="sheet-close" class="icon-btn" aria-label="Close">✕</button>
       </header>
 
-      <details id="llm-settings" class="llm-settings">
-        <summary>⚙️ LLM settings</summary>
-        <label>API base URL
-          <input id="llm-base" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
-        </label>
-        <label>API key
-          <input id="llm-key" type="password" placeholder="sk-..." autocomplete="off" />
-        </label>
-        <label>Model
-          <input id="llm-model" type="text" placeholder="gpt-4o-mini" autocomplete="off" />
-        </label>
-        <button id="llm-save" class="small-btn">Save settings</button>
-        <p class="settings-note">Stored only in this browser (localStorage). Your key is sent to the API base URL above — only point it at services you trust.</p>
-      </details>
-
-      <div id="chat-log" class="chat-log" aria-live="polite"></div>
-
-      <form id="chat-form" class="chat-form">
-        <input id="chat-input" type="text" placeholder='e.g. "add 6 ocean animals in Spanish"' autocomplete="off" />
-        <button type="submit" class="small-btn send-btn">Send</button>
-      </form>
-
-      <div class="sheet-actions">
-        <button id="export-words" class="small-btn">📋 Copy my words</button>
-        <button id="reset-words" class="small-btn danger">🗑 Reset custom words</button>
+      <div id="pw-gate" class="pw-gate">
+        <p class="pw-title">🔒 Grown-ups only</p>
+        <form id="pw-form" class="chat-form">
+          <input id="pw-input" type="password" placeholder="password" autocomplete="off" />
+          <button type="submit" class="small-btn send-btn">Unlock</button>
+        </form>
+        <p id="pw-error" class="pw-error hidden">wrong password 🐻</p>
       </div>
-      <p class="sheet-note">Custom words stay on this device and use the device voice.
-        Copy them to Spock to bake them into the app with ElevenLabs audio.</p>
+
+      <div id="chat-ui" class="hidden">
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" placeholder='e.g. "add 6 ocean animals in Spanish"' autocomplete="off" />
+          <button type="submit" class="small-btn send-btn">Send</button>
+        </form>
+
+        <div class="sheet-actions">
+          <button id="export-words" class="small-btn">📋 Copy my words</button>
+          <button id="reset-words" class="small-btn danger">🗑 Reset custom words</button>
+          <button id="lock-btn" class="small-btn">🔒 Lock</button>
+        </div>
+        <p class="sheet-note">Custom words stay on this device and use the device voice.
+          Copy them to Spock to bake them into the app with ElevenLabs audio.</p>
+      </div>
     </div>
   </div>
 

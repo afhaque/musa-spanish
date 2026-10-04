@@ -11,6 +11,7 @@ const GAMES = {
     title: "¡Hola! Spanish",
     lang: "es",
     speakColor: "green",
+    hint: "tap the green button to hear it!",
     categories: {
       "Animals": [
         { word: "el perro",    sub: "the dog",    emoji: "🐶", slug: "perro" },
@@ -58,6 +59,7 @@ const GAMES = {
     title: "Sight Words",
     lang: "en",
     speakColor: "orange",
+    hint: "tap the orange button to hear it!",
     categories: {
       "Animals": [
         { word: "dog",   emoji: "🐶", slug: "dog" },
@@ -122,7 +124,6 @@ const GAMES = {
 const $ = (id) => document.getElementById(id);
 const player = $("player");
 const CUSTOM_KEY = "musa-custom-words";
-const LLM_KEY = "musa-llm-settings";
 const MAX_CUSTOM_WORDS = 200;
 
 let state = {
@@ -147,6 +148,7 @@ function openGame(key) {
   const game = GAMES[key];
   document.documentElement.lang = game.lang;
   $("game-title").textContent = game.title;
+  $("hint").textContent = game.hint;
   $("speak-btn").className = "speak-btn " + game.speakColor;
   renderStars();
   renderTabs(Object.keys(game.categories));
@@ -380,14 +382,13 @@ $("sheet-close").addEventListener("click", closeSheet);
 $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) closeSheet(); });
 
 function openSheet() {
-  const s = getLlmSettings();
-  $("llm-base").value = s.base;
-  $("llm-key").value = s.key;
-  $("llm-model").value = s.model;
-  if (!$("chat-log").children.length) {
-    botSay(s.key
-      ? 'Tell me what words to add! For example:\n• "add 6 ocean animals in Spanish"\n• "add 8 more sight words about home"\n• "make a new Spanish category for family members"'
-      : "First, open ⚙️ LLM settings above and paste an API key (OpenAI or any OpenAI-compatible service). It stays in this browser only.");
+  const unlocked = !!sessionStorage.getItem("musa-pw");
+  $("pw-gate").classList.toggle("hidden", unlocked);
+  $("chat-ui").classList.toggle("hidden", !unlocked);
+  $("pw-error").classList.add("hidden");
+  $("pw-input").value = "";
+  if (unlocked && !$("chat-log").children.length) {
+    botSay('Tell me what words to add! For example:\n• "add 6 ocean animals in Spanish"\n• "add 8 more sight words about home"\n• "make a new Spanish category for family members"');
   }
   $("sheet").classList.remove("hidden");
 }
@@ -413,48 +414,42 @@ function chatMsg(text, cls) {
 }
 const botSay = (t) => chatMsg(t, "bot");
 
-/* ---------- LLM settings ---------- */
-function getLlmSettings() {
-  let s = {};
-  try { s = JSON.parse(localStorage.getItem(LLM_KEY)) || {}; } catch { s = {}; }
-  return {
-    base: (s.base || "https://api.openai.com/v1").replace(/\/+$/, ""),
-    key: s.key || "",
-    model: s.model || "gpt-4o-mini",
-  };
-}
-
-$("llm-save").addEventListener("click", () => {
-  const s = {
-    base: $("llm-base").value.trim() || "https://api.openai.com/v1",
-    key: $("llm-key").value.trim(),
-    model: $("llm-model").value.trim() || "gpt-4o-mini",
-  };
-  localStorage.setItem(LLM_KEY, JSON.stringify(s));
-  botSay("Settings saved ✅");
+/* ---------- password gate (enforced server-side by /api/words) ---------- */
+$("pw-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = $("pw-input").value;
+  if (!pw) return;
+  try {
+    const res = await fetch("/api/words", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw, check: true }),
+    });
+    if (res.ok) {
+      sessionStorage.setItem("musa-pw", pw);
+      openSheet();
+    } else {
+      $("pw-error").classList.remove("hidden");
+    }
+  } catch {
+    $("pw-error").textContent = "couldn't reach the server — try again";
+    $("pw-error").classList.remove("hidden");
+  }
 });
 
-/* ---------- LLM chat ---------- */
-const SYSTEM_PROMPT = `You expand the word lists of a toddler's flashcard app. The app has two games: "spanish" (Spanish vocabulary) and "sight" (English sight words for early readers).
+$("lock-btn").addEventListener("click", () => {
+  sessionStorage.removeItem("musa-pw");
+  openSheet();
+});
 
-Reply with ONLY a JSON object, no markdown fences, no explanation:
-{"spanish":{"Category Name":[{"word":"el tiburón","sub":"the shark","emoji":"🦈"}]},"sight":{"Category Name":[{"word":"shark","emoji":"🦈"}]}}
-
-Rules:
-- Include only the games/categories the user asked for; omit the rest.
-- Spanish words: singular noun with correct article (el/la) and proper accents; "sub" is the English translation ("the shark"). Colors/shapes keep their usual form.
-- Sight words: simple English words a 3-5 year old can read; NO "sub" field.
-- One clear, common emoji per word.
-- 3 to 12 words per category per request.
-- Kid-appropriate vocabulary only.`;
-
+/* ---------- LLM chat (via /api/words — Kimi key stays server-side) ---------- */
 $("chat-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = $("chat-input");
   const text = input.value.trim();
   if (!text) return;
-  const s = getLlmSettings();
-  if (!s.key) { botSay("No API key yet — open ⚙️ LLM settings above and paste one first."); return; }
+  const pw = sessionStorage.getItem("musa-pw");
+  if (!pw) { openSheet(); return; }
 
   input.value = "";
   chatMsg(text, "user");
@@ -462,29 +457,27 @@ $("chat-form").addEventListener("submit", async (e) => {
 
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    const res = await fetch(`${s.base}/chat/completions`, {
+    const timer = setTimeout(() => ctrl.abort(), 70000);
+    const res = await fetch("/api/words", {
       method: "POST",
       signal: ctrl.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${s.key}`,   // key goes only to the configured endpoint
-      },
-      body: JSON.stringify({
-        model: s.model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: text },
-        ],
-        temperature: 0.7,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw, message: text }),
     });
     clearTimeout(timer);
-    // NOTE: never echo the response body on failure — a hostile endpoint could
-    // reflect the request (including the Authorization header) back at us.
-    if (!res.ok) throw new Error(`API error ${res.status} from ${new URL(s.base).host}`);
+    if (res.status === 401) {
+      sessionStorage.removeItem("musa-pw");
+      thinking.remove();
+      openSheet();
+      $("pw-error").classList.remove("hidden");
+      return;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `server error ${res.status}`);
+    }
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = data.content || "";
 
     // tolerate the model wrapping JSON in prose or fences
     const match = content.match(/\{[\s\S]*\}/);
@@ -494,7 +487,7 @@ $("chat-form").addEventListener("submit", async (e) => {
     const custom = loadCustom();
     if (countCustom(custom) >= MAX_CUSTOM_WORDS) {
       thinking.remove();
-      botSay(`You've hit the ${MAX_CUSTOM_WORDS}-word custom limit. Copy your words to Spock to bake them in, then reset.`, );
+      botSay(`You've hit the ${MAX_CUSTOM_WORDS}-word custom limit. Copy your words to Spock to bake them in, then reset.`);
       return;
     }
     const { added, skipped } = mergeWords(payload, custom);
@@ -515,7 +508,7 @@ $("chat-form").addEventListener("submit", async (e) => {
   } catch (err) {
     thinking.remove();
     const msg = err.name === "AbortError"
-      ? "The request timed out after 30s — check the API base URL in ⚙️ settings."
+      ? "The request timed out — the model is busy, try again."
       : `Couldn't add words: ${err.message}`;
     chatMsg(msg, "bot error");
   }

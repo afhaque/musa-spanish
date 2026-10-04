@@ -233,6 +233,11 @@ html, body {
 .sheet-header h3 { margin: 0; font-size: 1.4rem; }
 .sheet-header .icon-btn { font-size: 1.2rem; }
 
+/* ---------- password gate ---------- */
+.pw-gate { margin: 16px 0; display: flex; flex-direction: column; gap: 12px; }
+.pw-title { font-size: 1.2rem; font-weight: bold; text-align: center; margin: 8px 0 0; }
+.pw-error { color: #c0392b; font-weight: bold; text-align: center; margin: 0; }
+
 .llm-settings {
   margin: 12px 0;
   background: #fff; border-radius: 16px;
