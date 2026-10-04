@@ -131,9 +131,10 @@ let state = {
 
 /* ---------- navigation ---------- */
 document.querySelectorAll(".game-card").forEach((btn) =>
-  btn.addEventListener("click", () => openGame(btn.dataset.game))
+  btn.addEventListener("click", () => { stopAudio(); openGame(btn.dataset.game); })
 );
 $("back-btn").addEventListener("click", () => {
+  stopAudio();
   $("game").classList.add("hidden");
   $("home").classList.remove("hidden");
 });
@@ -141,6 +142,7 @@ $("back-btn").addEventListener("click", () => {
 function openGame(key) {
   state.game = key;
   const game = GAMES[key];
+  document.documentElement.lang = game.lang;
   $("game-title").textContent = game.title;
   $("hint").textContent = game.hint;
   $("speak-btn").className = "speak-btn " + game.speakColor;
@@ -203,15 +205,28 @@ $("flashcard").addEventListener("click", speak);
 $("speak-btn").addEventListener("click", speak);
 
 /* ---------- audio ---------- */
+let fallbackFired = false;
+
+function stopAudio() {
+  player.pause();
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+
 function speak() {
   const card = currentCards()[state.index];
   const lang = GAMES[state.game].lang;
   const src = `audio/${lang}-${card.slug}.mp3`;
 
+  fallbackFired = false;
+  const onFail = () => {
+    if (fallbackFired) return;
+    fallbackFired = true;
+    synthFallback(card.word, lang);
+  };
+  player.onerror = onFail;
   player.src = src;
   player.currentTime = 0;
-  player.play().catch(() => synthFallback(card.word, lang));
-  player.onerror = () => synthFallback(card.word, lang);
+  player.play().catch(onFail);
 }
 
 function synthFallback(text, lang) {

@@ -28,7 +28,7 @@ node extract-words.js   # writes wordlist.txt from app.js
 - Toddler-scale tap targets (≥48px), single-column layout, safe-area aware
 - Star counter with persistence (localStorage)
 - Category completion celebration
-- Works offline after first load (all assets local)
+- Fully static: no backend, no build step, no tracking
 
 ## Deploy
 
