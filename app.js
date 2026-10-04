@@ -185,14 +185,26 @@ function currentCards() {
 
 function showCard() {
   const card = currentCards()[state.index];
+  const isSpanish = state.game === "spanish";
   const fc = $("flashcard");
-  fc.classList.remove("flipped");          // always land word-side up
-  $("card-emoji").textContent = card.emoji;
-  $("card-word").textContent = card.word;
-  $("card-back-word").textContent = card.word;
+  fc.classList.remove("flipped");          // always land front-side up
+
+  // Spanish: front = image + English word, back = Spanish word (the answer).
+  // Sight words: front = English word, back = image (+ word for reinforcement).
+  const frontEmoji = $("card-front-emoji");
+  frontEmoji.style.display = isSpanish ? "" : "none";
+  frontEmoji.textContent = card.emoji;
+  $("card-word").textContent = isSpanish ? (card.sub || card.word) : card.word;
+
+  const backEmoji = $("card-emoji");
+  backEmoji.style.display = isSpanish ? "none" : "";
+  backEmoji.textContent = card.emoji;
+  const backWord = $("card-back-word");
+  backWord.textContent = card.word;
+  backWord.classList.toggle("card-word-small", !isSpanish);
   const sub = $("card-sub");
-  if (card.sub) { sub.textContent = card.sub; sub.style.display = ""; }
-  else { sub.style.display = "none"; }
+  sub.style.display = "none";
+
   $("progress").textContent = `${state.index + 1} / ${currentCards().length}`;
   fc.classList.remove("deal");
   void fc.offsetWidth; // restart deal animation
