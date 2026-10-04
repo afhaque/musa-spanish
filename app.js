@@ -206,7 +206,7 @@ $("next-btn").addEventListener("click", () => {
   const cards = currentCards();
   state.index = (state.index + 1) % cards.length;
   showCard();
-  if (state.index === 0) celebrate();
+  if (state.index === 0 && cards.length > 1) celebrate();
 });
 
 $("speak-btn").addEventListener("click", speak);
@@ -312,28 +312,45 @@ function countCustom(custom) {
 }
 
 /* Merge custom words into GAMES. Returns {added, skipped} counts.
- * Accepts shape { spanish: {Cat: [{word, sub?, emoji}]}, sight: {...} } */
+ * Accepts shape { spanish: {Cat: [{word, sub?, emoji}]}, sight: {...} }
+ * Limits: MAX_CUSTOM_WORDS enforced per word; reserved/prototype-chain
+ * category names rejected; slugs deduped across the whole game (audio URLs
+ * are slug-keyed, so a cross-category dup would collide). */
+const RESERVED_NAMES = new Set(["__proto__", "constructor", "prototype", "hasOwnProperty", "toString", "valueOf"]);
+
+function graphemes(s) {
+  if (typeof Intl !== "undefined" && Intl.Segmenter)
+    return [...new Intl.Segmenter().segment(s)].map((x) => x.segment);
+  return [...s];
+}
+
+function slugInGame(gameKey, slug) {
+  return Object.values(GAMES[gameKey].categories).some((cards) =>
+    Array.isArray(cards) && cards.some((c) => c.slug === slug)
+  );
+}
+
 function mergeWords(payload, custom) {
   let added = 0, skipped = 0;
   for (const gameKey of ["spanish", "sight"]) {
     const cats = payload[gameKey];
-    if (!cats || typeof cats !== "object") continue;
+    if (!cats || typeof cats !== "object" || Array.isArray(cats)) continue;
     for (const [catName, words] of Object.entries(cats)) {
       if (!Array.isArray(words)) continue;
       const cleanCat = String(catName).slice(0, 24).trim();
-      if (!cleanCat) continue;
-      if (!GAMES[gameKey].categories[cleanCat]) GAMES[gameKey].categories[cleanCat] = [];
-      if (!custom[gameKey]) custom[gameKey] = {};
-      if (!custom[gameKey][cleanCat]) custom[gameKey][cleanCat] = [];
+      if (!cleanCat || RESERVED_NAMES.has(cleanCat)) { skipped += words.length; continue; }
+      if (!Object.hasOwn(GAMES[gameKey].categories, cleanCat)) GAMES[gameKey].categories[cleanCat] = [];
+      if (!Object.hasOwn(custom, gameKey)) custom[gameKey] = {};
+      if (!Object.hasOwn(custom[gameKey], cleanCat)) custom[gameKey][cleanCat] = [];
       for (const w of words) {
+        if (countCustom(custom) >= MAX_CUSTOM_WORDS) { skipped++; continue; }
         if (!w || typeof w.word !== "string" || typeof w.emoji !== "string") { skipped++; continue; }
         const word = w.word.trim().slice(0, 40);
-        const emoji = w.emoji.trim().slice(0, 8);
+        const emoji = graphemes(w.emoji.trim()).slice(0, 4).join("");
         const sub = typeof w.sub === "string" ? w.sub.trim().slice(0, 40) : undefined;
         const slug = slugify(word);
         if (!word || !emoji || !slug) { skipped++; continue; }
-        const exists = GAMES[gameKey].categories[cleanCat].some((c) => c.slug === slug);
-        if (exists) { skipped++; continue; }
+        if (slugInGame(gameKey, slug)) { skipped++; continue; }
         const card = gameKey === "spanish"
           ? { word, sub: sub || "", emoji, slug }
           : { word, emoji, slug };
@@ -444,8 +461,11 @@ $("chat-form").addEventListener("submit", async (e) => {
   const thinking = botSay("thinking… 🤔");
 
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
     const res = await fetch(`${s.base}/chat/completions`, {
       method: "POST",
+      signal: ctrl.signal,
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${s.key}`,   // key goes only to the configured endpoint
@@ -459,7 +479,10 @@ $("chat-form").addEventListener("submit", async (e) => {
         temperature: 0.7,
       }),
     });
-    if (!res.ok) throw new Error(`API error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    clearTimeout(timer);
+    // NOTE: never echo the response body on failure — a hostile endpoint could
+    // reflect the request (including the Authorization header) back at us.
+    if (!res.ok) throw new Error(`API error ${res.status} from ${new URL(s.base).host}`);
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || "";
 
@@ -491,7 +514,10 @@ $("chat-form").addEventListener("submit", async (e) => {
     }
   } catch (err) {
     thinking.remove();
-    chatMsg(`Couldn't add words: ${err.message}`, "bot error");
+    const msg = err.name === "AbortError"
+      ? "The request timed out after 30s — check the API base URL in ⚙️ settings."
+      : `Couldn't add words: ${err.message}`;
+    chatMsg(msg, "bot error");
   }
 });
 
