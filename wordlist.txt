@@ -30,6 +30,30 @@ es|corazon|el corazón
 es|rombo|el rombo
 es|luna|la luna
 es|cruz|la cruz
+es|sol|el sol
+es|nube|la nube
+es|lluvia|la lluvia
+es|nieve|la nieve
+es|arbol|el árbol
+es|flor|la flor
+es|montana|la montaña
+es|mar|el mar
+es|plato|el plato
+es|vaso|el vaso
+es|taza|la taza
+es|cuchara|la cuchara
+es|tenedor|el tenedor
+es|cuchillo|el cuchillo
+es|olla|la olla
+es|sarten|la sartén
+es|biblioteca|la biblioteca
+es|playa|la playa
+es|parque|el parque
+es|escuela|la escuela
+es|tienda|la tienda
+es|hospital|el hospital
+es|casa|la casa
+es|zoologico|el zoológico
 en|dog|dog
 en|cat|cat
 en|duck|duck
