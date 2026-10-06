@@ -86,6 +86,7 @@ const GAMES = {
         { word: "la sandía",    sub: "the watermelon", emoji: "🍉", slug: "sandia" },
         { word: "las uvas",     sub: "the grapes",     emoji: "🍇", slug: "uvas" },
         { word: "la piña",      sub: "the pineapple",  emoji: "🍍", slug: "pina" },
+        { word: "la lima",      sub: "the lime",       emoji: "🍋‍🟩", slug: "lima" },
         { word: "la zanahoria", sub: "the carrot",     emoji: "🥕", slug: "zanahoria" },
         { word: "el brócoli",   sub: "the broccoli",   emoji: "🥦", slug: "brocoli" },
         { word: "el tomate",    sub: "the tomato",     emoji: "🍅", slug: "tomate" },

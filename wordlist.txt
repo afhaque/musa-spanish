@@ -58,6 +58,7 @@ es|naranja|la naranja
 es|sandia|la sandía
 es|uvas|las uvas
 es|pina|la piña
+es|lima|la lima
 es|zanahoria|la zanahoria
 es|brocoli|el brócoli
 es|tomate|el tomate
