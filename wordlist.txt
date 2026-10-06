@@ -59,10 +59,17 @@ es|sandia|la sandía
 es|uvas|las uvas
 es|pina|la piña
 es|lima|la lima
+es|pera|la pera
+es|melon|el melón
+es|cereza|la cereza
 es|zanahoria|la zanahoria
 es|brocoli|el brócoli
 es|tomate|el tomate
 es|maiz|el maíz
+es|papa|la papa
+es|cebolla|la cebolla
+es|lechuga|la lechuga
+es|pepino|el pepino
 es|biblioteca|la biblioteca
 es|playa|la playa
 es|parque|el parque
