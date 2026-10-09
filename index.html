@@ -34,6 +34,8 @@
       </span>
     </button>
 
+    <p id="whats-new" class="whats-new hidden"></p>
+
     <button id="addwords-btn" class="addwords-btn">✨ Add more words</button>
   </main>
 
@@ -47,10 +49,16 @@
 
     <nav id="tabs" class="tabs" aria-label="categories"></nav>
 
+    <section id="cat-picker" class="cat-picker">
+      <p class="pick-cat">Pick a category! 🧺</p>
+      <div id="cat-grid" class="cat-grid"></div>
+    </section>
+
     <section class="card-zone">
       <button id="flashcard" class="flashcard" aria-label="flashcard — tap to flip">
         <div class="card-inner">
           <div class="card-face card-front">
+            <span id="card-new" class="new-chip hidden">✨ new</span>
             <span id="card-front-emoji" class="card-emoji">🐟</span>
             <span id="card-word" class="card-word">the fish</span>
           </div>

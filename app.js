@@ -237,7 +237,66 @@ let state = {
   category: null,
   index: 0,
   stars: Number(localStorage.getItem("musa-stars") || 0),
+  shuffled: null,    // shuffled copy of the active category's cards
+  shuffledKey: null, // "game|category" the shuffle belongs to
 };
+
+/* ---------- shuffle ---------- */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------- what's new ---------- */
+const NEW_DAYS = 7;
+// Dates (YYYY-MM-DD) content was added. The weekday cron job updates this map
+// when it bakes in new categories/words; badges show while <= NEW_DAYS old.
+const NEW_CONTENT = {
+  categories: {
+    spanish: {
+      "Nature": "2026-10-04", "Kitchen": "2026-10-04", "Fruits": "2026-10-04",
+      "Veggies": "2026-10-04", "Places": "2026-10-04",
+      "Family": "2026-10-09", "Body": "2026-10-09",
+    },
+    sight: { "Actions": "2026-10-09", "Clothes": "2026-10-09" },
+  },
+  words: {
+    spanish: {
+      "leon": "2026-10-04", "elefante": "2026-10-04", "mono": "2026-10-04",
+      "jirafa": "2026-10-04", "oso": "2026-10-04", "rana": "2026-10-04",
+      "cerdo": "2026-10-04", "oveja": "2026-10-04",
+    },
+    sight: {},
+  },
+};
+
+function isNewDate(d) {
+  if (!d) return false;
+  const ageDays = (Date.now() - new Date(d + "T12:00:00Z").getTime()) / 864e5;
+  return ageDays >= 0 && ageDays <= NEW_DAYS;
+}
+function categoryIsNew(game, name) {
+  if (isNewDate(NEW_CONTENT.categories[game]?.[name])) return true;
+  const wmap = NEW_CONTENT.words[game] || {};
+  return (GAMES[game].categories[name] || []).some((c) => isNewDate(wmap[c.slug]));
+}
+function wordIsNew(game, slug) {
+  return isNewDate((NEW_CONTENT.words[game] || {})[slug]);
+}
+function renderWhatsNew() {
+  const el = $("whats-new");
+  if (!el) return;
+  const parts = [];
+  for (const game of Object.keys(GAMES)) {
+    const names = Object.keys(GAMES[game].categories).filter((n) => categoryIsNew(game, n));
+    if (names.length) parts.push(`${GAMES[game].title}: ${names.join(", ")}`);
+  }
+  el.textContent = parts.length ? `✨ New this week — ${parts.join("  ·  ")}` : "";
+  el.classList.toggle("hidden", !parts.length);
+}
 
 /* ---------- navigation ---------- */
 document.querySelectorAll(".game-card").forEach((btn) =>
@@ -245,7 +304,12 @@ document.querySelectorAll(".game-card").forEach((btn) =>
 );
 $("back-btn").addEventListener("click", () => {
   stopAudio();
-  $("game").classList.add("hidden");
+  const game = $("game");
+  if (!game.classList.contains("picking")) {
+    showPicker();              // card view → category picker
+    return;
+  }
+  game.classList.add("hidden"); // picker → home
   $("home").classList.remove("hidden");
 });
 
@@ -258,7 +322,7 @@ function openGame(key) {
   $("speak-btn").className = "speak-btn " + game.speakColor;
   renderStars();
   renderTabs(Object.keys(game.categories));
-  selectCategory(Object.keys(game.categories)[0]);
+  showPicker();               // browse categories first — no default deck
   $("home").classList.add("hidden");
   $("game").classList.remove("hidden");
 }
@@ -269,24 +333,74 @@ function renderTabs(names) {
   names.forEach((name) => {
     const b = document.createElement("button");
     b.className = "tab";
+    b.dataset.cat = name;
     b.textContent = name;
+    if (categoryIsNew(state.game, name)) {
+      const badge = document.createElement("span");
+      badge.className = "new-badge";
+      badge.textContent = "NEW";
+      b.appendChild(badge);
+    }
     b.addEventListener("click", () => selectCategory(name));
     nav.appendChild(b);
   });
 }
 
+/* ---------- category picker (browse-first) ---------- */
+function renderCatPicker() {
+  const grid = $("cat-grid");
+  grid.innerHTML = "";
+  const cats = GAMES[state.game].categories;
+  Object.keys(cats).forEach((name) => {
+    const cards = cats[name];
+    const b = document.createElement("button");
+    b.className = "cat-card";
+    const emoji = document.createElement("span");
+    emoji.className = "cat-card-emoji";
+    emoji.textContent = (cards[0] && cards[0].emoji) || "✨";
+    const label = document.createElement("strong");
+    label.textContent = name;
+    const count = document.createElement("small");
+    count.textContent = `${cards.length} word${cards.length === 1 ? "" : "s"}`;
+    b.append(emoji, label, count);
+    if (categoryIsNew(state.game, name)) {
+      const badge = document.createElement("span");
+      badge.className = "new-badge";
+      badge.textContent = "NEW";
+      b.appendChild(badge);
+    }
+    b.addEventListener("click", () => { stopAudio(); selectCategory(name); });
+    grid.appendChild(b);
+  });
+}
+
+function showPicker() {
+  state.category = null;
+  state.shuffled = null;
+  renderCatPicker();
+  $("game").classList.add("picking");
+}
+
 function selectCategory(name) {
   state.category = name;
   state.index = 0;
+  state.shuffled = null;   // force a fresh shuffle in currentCards()
+  $("game").classList.remove("picking");
   document.querySelectorAll(".tab").forEach((t) =>
-    t.classList.toggle("active", t.textContent === name)
+    t.classList.toggle("active", t.dataset.cat === name)
   );
   showCard();
 }
 
 /* ---------- flip card ---------- */
 function currentCards() {
-  return GAMES[state.game].categories[state.category];
+  const src = GAMES[state.game].categories[state.category];
+  const key = state.game + "|" + state.category;
+  if (!state.shuffled || state.shuffledKey !== key || state.shuffled.length !== src.length) {
+    state.shuffled = shuffle(src.slice());
+    state.shuffledKey = key;
+  }
+  return state.shuffled;
 }
 
 function showCard() {
@@ -311,6 +425,9 @@ function showCard() {
   const sub = $("card-sub");
   sub.style.display = "none";
 
+  const newChip = $("card-new");
+  if (newChip) newChip.classList.toggle("hidden", !wordIsNew(state.game, card.slug));
+
   $("progress").textContent = `${state.index + 1} / ${currentCards().length}`;
   fc.classList.remove("deal");
   void fc.offsetWidth; // restart deal animation
@@ -325,8 +442,11 @@ $("next-btn").addEventListener("click", () => {
   addStar();
   const cards = currentCards();
   state.index = (state.index + 1) % cards.length;
+  if (state.index === 0 && cards.length > 1) {
+    state.shuffled = shuffle(cards.slice());  // reshuffle each lap
+    celebrate();
+  }
   showCard();
-  if (state.index === 0 && cards.length > 1) celebrate();
 });
 
 $("speak-btn").addEventListener("click", speak);
@@ -494,6 +614,7 @@ function mergeWords(payload, custom) {
   mergeWords(stored, fresh); // rebuilds GAMES; 'fresh' mirrors stored (dedup vs built-ins)
   saveCustom(fresh);
 })();
+renderWhatsNew(); // after custom words merge, so home reflects final GAMES
 
 /* ---------- sheet UI ---------- */
 $("addwords-btn").addEventListener("click", () => {
@@ -516,12 +637,16 @@ function openSheet() {
 
 function closeSheet() {
   $("sheet").classList.add("hidden");
-  // if words were added while a game was open, refresh the tab bar
+  // if words were added while a game was open, refresh the tab bar / picker
   if (!$("game").classList.contains("hidden") && state.game) {
     renderTabs(Object.keys(GAMES[state.game].categories));
-    document.querySelectorAll(".tab").forEach((t) =>
-      t.classList.toggle("active", t.textContent === state.category)
-    );
+    if ($("game").classList.contains("picking")) {
+      renderCatPicker();
+    } else {
+      document.querySelectorAll(".tab").forEach((t) =>
+        t.classList.toggle("active", t.dataset.cat === state.category)
+      );
+    }
   }
 }
 
