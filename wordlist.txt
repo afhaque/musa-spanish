@@ -78,6 +78,22 @@ es|tienda|la tienda
 es|hospital|el hospital
 es|casa|la casa
 es|zoologico|el zoológico
+es|mama|mamá
+es|papa-dad|papá
+es|bebe|el bebé
+es|abuela|la abuela
+es|abuelo|el abuelo
+es|hermano|el hermano
+es|hermana|la hermana
+es|tio|el tío
+es|cabeza|la cabeza
+es|ojo|el ojo
+es|oreja|la oreja
+es|nariz|la nariz
+es|boca|la boca
+es|mano|la mano
+es|pie|el pie
+es|diente|el diente
 en|dog|dog
 en|cat|cat
 en|duck|duck
@@ -126,3 +142,27 @@ en|white|white
 en|brown|brown
 en|gray|gray
 en|rainbow|rainbow
+en|run|run
+en|jump|jump
+en|eat|eat
+en|drink|drink
+en|sleep|sleep
+en|play|play
+en|read|read
+en|sing|sing
+en|dance|dance
+en|swim|swim
+en|walk|walk
+en|stop|stop
+en|shirt|shirt
+en|pants|pants
+en|dress|dress
+en|sock|sock
+en|coat|coat
+en|boot|boot
+en|glove|glove
+en|scarf|scarf
+en|shorts|shorts
+en|swimsuit|swimsuit
+en|sandal|sandal
+en|cap|cap
